@@ -88,7 +88,7 @@ export default function Results() {
  const handleUpgrade = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      router.push('/auth')
+      router.push('/auth?returnTo=/results')
       return
     }
     const response = await fetch('/api/checkout', {

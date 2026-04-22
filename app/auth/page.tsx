@@ -26,7 +26,8 @@ export default function Auth() {
       if (error) {
         setError(error.message)
       } else {
-        router.push('/dashboard')
+        const returnTo = new URLSearchParams(window.location.search).get('returnTo')
+router.push(returnTo || '/dashboard')
       }
     } else {
   const { data, error } = await supabase.auth.signUp({
@@ -36,7 +37,8 @@ export default function Auth() {
   if (error) {
     setError(error.message)
   } else if (data.session) {
-    router.push('/dashboard')
+    const returnTo = new URLSearchParams(window.location.search).get('returnTo')
+router.push(returnTo || '/dashboard')
   } else {
     setIsLogin(true)
     setMessage('Account created! You can now sign in.')
