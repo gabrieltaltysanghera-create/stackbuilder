@@ -29,13 +29,12 @@ export async function POST(request: NextRequest) {
     const session = event.data.object as Stripe.Checkout.Session
 
     if (session.customer_email) {
-      const { data: user } = await supabase.auth.admin.getUserByEmail(
-        session.customer_email
-      )
+      const { data: users } = await supabase.auth.admin.listUsers()
+      const user = users?.users?.find(u => u.email === session.customer_email)
 
-      if (user?.user) {
+      if (user) {
         await supabase.from('subscribers').upsert({
-          user_id: user.user.id,
+          user_id: user.id,
           email: session.customer_email,
           stripe_customer_id: session.customer as string,
         })
