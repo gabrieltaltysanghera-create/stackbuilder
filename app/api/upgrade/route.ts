@@ -5,6 +5,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
 export async function GET(request: NextRequest) {
   try {
+    const origin = request.nextUrl.origin
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -14,13 +16,14 @@ export async function GET(request: NextRequest) {
         },
       ],
       mode: 'subscription',
-      success_url: `${request.headers.get('origin')}/intake?upgraded=true`,
-      cancel_url: `${request.headers.get('origin')}/intake`,
+      success_url: `${origin}/intake?upgraded=true`,
+      cancel_url: `${origin}/intake`,
     })
 
     return NextResponse.redirect(session.url!)
   } catch (error) {
     console.error('Upgrade error:', error)
-    return NextResponse.redirect(new URL('/intake', request.url))
+    const origin = request.nextUrl.origin
+    return NextResponse.redirect(new URL('/intake', origin))
   }
 }
