@@ -29,16 +29,19 @@ export default function Auth() {
         router.push('/dashboard')
       }
     } else {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-      })
-      if (error) {
-        setError(error.message)
-      } else {
-        setMessage('Check your email to confirm your account, then log in!')
-      }
-    }
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  })
+  if (error) {
+    setError(error.message)
+  } else if (data.session) {
+    router.push('/dashboard')
+  } else {
+    setIsLogin(true)
+    setMessage('Account created! You can now sign in.')
+  }
+}
     setLoading(false)
   }
 
