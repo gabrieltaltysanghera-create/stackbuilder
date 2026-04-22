@@ -117,7 +117,7 @@ export default function Intake() {
               <div className="bg-green-400/10 border border-green-400/30 rounded-xl px-4 py-4 mb-4">
                 <p className="text-green-400 text-sm font-medium mb-1">Multiple goals is a Pro feature</p>
                 <p className="text-gray-400 text-xs mb-3">Upgrade to unlock unlimited goals and a more personalised stack.</p>
-                <a href="/auth?returnTo=/intake" className="inline-block bg-green-400 text-black text-xs font-semibold px-4 py-2 rounded-lg hover:bg-green-300 transition-colors">Upgrade to Pro - 12/month</a>
+                <a href="/results#upgrade" className="inline-block bg-green-400 text-black text-xs font-semibold px-4 py-2 rounded-lg hover:bg-green-300 transition-colors">Upgrade to Pro - 12/month</a>
               </div>
             )}
 
