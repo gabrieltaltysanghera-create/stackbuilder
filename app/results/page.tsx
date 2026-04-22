@@ -85,16 +85,20 @@ export default function Results() {
     return () => clearInterval(interval)
   }, [])
 
-  const handleUpgrade = async () => {
+ const handleUpgrade = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      router.push('/auth')
+      return
+    }
     const response = await fetch('/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userEmail }),
+      body: JSON.stringify({ userEmail: user.email }),
     })
     const data = await response.json()
     if (data.url) window.location.href = data.url
   }
-
   const downloadPDF = async () => {
     if (!stack) return
     if (!isPro) { handleUpgrade(); return }
