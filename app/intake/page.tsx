@@ -1,5 +1,5 @@
 'use client'
-handleUpgrade
+
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -118,10 +118,6 @@ export default function Intake() {
                 <p className="text-green-400 text-sm font-medium mb-1">Multiple goals is a Pro feature</p>
                 <p className="text-gray-400 text-xs mb-3">Upgrade to unlock unlimited goals and a more personalised stack.</p>
                 <a href="/auth?returnTo=/intake" className="inline-block bg-green-400 text-black text-xs font-semibold px-4 py-2 rounded-lg hover:bg-green-300 transition-colors">Upgrade to Pro - 12/month</a>
-  const data = await res.json()
-  if (data.url) window.location.href = data.url
-  else window.location.href = '/auth?returnTo=/intake'
-}} className="inline-block bg-green-400 text-black text-xs font-semibold px-4 py-2 rounded-lg hover:bg-green-300 transition-colors">Upgrade to Pro - 12/month</button>
               </div>
             )}
 
