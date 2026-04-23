@@ -25,7 +25,7 @@ A user has completed a workout intake form with the following information:
 - Injuries or areas to avoid: ${injuries || 'None'}
 - Preferred training style: ${preferredStyle}
 
-Create a personalised weekly workout plan. For each training day provide 4-6 exercises with sets, reps, rest periods, starting weight guidance, and coaching notes. Include rest days. For each exercise provide a real PubMed study URL where possible.
+Create a personalised weekly workout plan. For each training day provide 3-4 exercises maximum. Keep notes brief. Include rest days. Only include a study URL for the first exercise of each day.
 
 Return your response as a JSON object in exactly this format:
 {
@@ -65,7 +65,7 @@ Return only the JSON, no other text.`
 
     const message = await client.messages.create({
       model: 'claude-opus-4-5-20251101',
-      max_tokens: 4000,
+      max_tokens: 4069,
       messages: [
         {
           role: 'user',
