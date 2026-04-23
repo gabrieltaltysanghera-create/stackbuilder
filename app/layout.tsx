@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Navbar from "./components/Navbar";
 
 export const metadata: Metadata = {
   title: "StackBuilder AI",
-  description: "Your personalised supplement stack, built by AI",
+  description: "Your personalised supplement stack and workout plan, built by AI",
 };
 
 export default function RootLayout({
@@ -13,7 +14,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Navbar />
+        <div className="pt-14">
+          {children}
+        </div>
+      </body>
     </html>
   );
 }
