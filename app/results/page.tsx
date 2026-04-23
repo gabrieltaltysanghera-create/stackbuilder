@@ -11,6 +11,7 @@ interface Supplement {
   timing: string
   reason: string
   warning?: string | null
+  study?: string | null
 }
 
 interface StackResult {
@@ -85,7 +86,7 @@ export default function Results() {
     return () => clearInterval(interval)
   }, [])
 
- const handleUpgrade = async () => {
+  const handleUpgrade = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       router.push('/auth?returnTo=/results')
@@ -99,6 +100,7 @@ export default function Results() {
     const data = await response.json()
     if (data.url) window.location.href = data.url
   }
+
   const downloadPDF = async () => {
     if (!stack) return
     if (!isPro) { handleUpgrade(); return }
@@ -156,6 +158,9 @@ export default function Results() {
         y += 1
         addText('Warning: ' + supp.warning, 9, false, [161, 120, 0])
       }
+      if (supp.study) {
+        addText('Research: ' + supp.study, 9, false, [34, 197, 94])
+      }
       y += 6
     })
 
@@ -193,8 +198,6 @@ export default function Results() {
     )
   }
 
-  const FREE_LIMIT = 3
-
   return (
     <main className="min-h-screen bg-black text-white px-4 py-12">
       <div className="max-w-2xl mx-auto">
@@ -206,45 +209,44 @@ export default function Results() {
         </div>
 
         <div className="space-y-4 mb-10">
-          {stack?.supplements.map((supp, i) => {
-            const isLocked = !isPro && i >= FREE_LIMIT
-            return (
-              <div key={i} className={isLocked ? 'relative rounded-2xl overflow-hidden' : ''}>
-                {isLocked && (
-                  <div className="absolute inset-0 backdrop-blur-sm bg-black/60 z-10 flex flex-col items-center justify-center rounded-2xl">
-                    <p className="text-white font-semibold mb-3">Unlock with Pro</p>
-                    <button onClick={handleUpgrade} className="bg-green-400 text-black font-semibold px-6 py-2 rounded-xl hover:bg-green-300 transition-colors text-sm">Upgrade to Pro - 12/month</button>
-                  </div>
-                )}
-                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-xl font-bold">{supp.name}</h3>
-                    {isPro ? (
-                      <span className="bg-green-400 text-black text-xs font-semibold px-3 py-1 rounded-full ml-4 shrink-0">{supp.dose}</span>
-                    ) : (
-                      <button onClick={handleUpgrade} className="bg-gray-800 border border-gray-700 text-gray-500 text-xs font-semibold px-3 py-1 rounded-full ml-4 shrink-0 hover:border-green-400 hover:text-green-400 transition-colors">Unlock dose</button>
-                    )}
-                  </div>
-                  <p className="text-green-400 text-sm font-medium mb-3">Timing: {supp.timing}</p>
-                  <p className="text-gray-400 text-sm leading-relaxed mb-3">{supp.reason}</p>
-                  {supp.warning && (
-                    <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-xl px-4 py-3 mb-3">
-                      <p className="text-yellow-400 text-xs font-medium">Warning: {supp.warning}</p>
-                    </div>
-                  )}
-                  <a href={getAmazonLink(supp.name)} target="_blank" rel="noopener noreferrer" className="inline-block text-xs font-medium text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-2 rounded-lg transition-colors">Buy on Amazon</a>
-                </div>
+          {stack?.supplements.map((supp, i) => (
+            <div key={i} className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+              <div className="flex items-start justify-between mb-3">
+                <h3 className="text-xl font-bold">{supp.name}</h3>
+                <span className="bg-green-400 text-black text-xs font-semibold px-3 py-1 rounded-full ml-4 shrink-0">{supp.dose}</span>
               </div>
-            )
-          })}
+              <p className="text-green-400 text-sm font-medium mb-3">Timing: {supp.timing}</p>
+              <p className="text-gray-400 text-sm leading-relaxed mb-3">{supp.reason}</p>
+              {supp.warning && (
+                <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-xl px-4 py-3 mb-3">
+                  <p className="text-yellow-400 text-xs font-medium">Warning: {supp.warning}</p>
+                </div>
+              )}
+              <div className="flex gap-3 flex-wrap mt-2">
+                <a href={getAmazonLink(supp.name)} target="_blank" rel="noopener noreferrer" className="inline-block text-xs font-medium text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-2 rounded-lg transition-colors">Buy on Amazon</a>
+                {supp.study && (
+                  <a href={supp.study} target="_blank" rel="noopener noreferrer" className="inline-block text-xs font-medium text-green-400 hover:text-green-300 border border-green-400/30 hover:border-green-400 px-3 py-2 rounded-lg transition-colors">View research</a>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
 
         {!isPro && (
           <div className="bg-gray-900 border border-green-400/30 rounded-2xl p-6 mb-6">
             <p className="text-green-400 text-sm font-medium uppercase tracking-widest mb-2">Upgrade to Pro</p>
-            <h3 className="text-xl font-bold mb-2">Unlock your full stack</h3>
-            <p className="text-gray-400 text-sm mb-4">Get all supplement doses, the full stack, PDF download, unlimited stacks, bloodwork upload and shareable protocol links.</p>
-            <button onClick={handleUpgrade} className="w-full bg-green-400 text-black font-semibold py-3 rounded-xl hover:bg-green-300 transition-colors">Upgrade to Pro - 12/month</button>
+            <h3 className="text-xl font-bold mb-2">Take your health further</h3>
+            <p className="text-gray-400 text-sm mb-1">Pro unlocks your full coaching experience:</p>
+            <ul className="text-gray-400 text-sm mb-4 space-y-1">
+              <li>Daily AI check-ins that adapt your plan</li>
+              <li>Workout builder + progression tracking</li>
+              <li>Streaks, progress charts and photos</li>
+              <li>Supplement timing reminders</li>
+              <li>PDF export and shareable protocol link</li>
+              <li>Bloodwork upload for precision recommendations</li>
+            </ul>
+            <button onClick={handleUpgrade} className="w-full bg-green-400 text-black font-semibold py-3 rounded-xl hover:bg-green-300 transition-colors">Upgrade to Pro - 14.99/month</button>
+            <p className="text-gray-600 text-xs text-center mt-2">or 99/year (45% off)</p>
           </div>
         )}
 

@@ -25,11 +25,12 @@ A user has completed an intake form with the following information:
 - Monthly budget: ${budget}
 
 Based on this profile, create a personalised supplement stack. For each supplement provide:
-1. The specific form e.g. Magnesium Glycinate not just Magnesium
+1. The specific form (e.g. Magnesium Glycinate not just Magnesium)
 2. Exact dose based on their weight and profile
 3. Best timing for absorption
 4. Why it is recommended for THIS specific person based on their data
 5. Any warnings or interactions to be aware of
+6. A real PubMed or peer-reviewed study URL that supports this recommendation
 
 Return your response as a JSON object in exactly this format:
 {
@@ -40,7 +41,8 @@ Return your response as a JSON object in exactly this format:
       "dose": "Exact dose",
       "timing": "When to take it",
       "reason": "Why this person specifically needs this based on their profile",
-      "warning": "Any warnings or null if none"
+      "warning": "Any warnings or null if none",
+      "study": "A real PubMed URL like https://pubmed.ncbi.nlm.nih.gov/XXXXXXXX"
     }
   ]
 }
@@ -64,7 +66,7 @@ Return only the JSON, no other text.`
     }
 
     const cleaned = content.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-const stackData = JSON.parse(cleaned)
+    const stackData = JSON.parse(cleaned)
     return NextResponse.json(stackData)
 
   } catch (error) {
