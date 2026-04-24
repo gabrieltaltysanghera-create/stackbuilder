@@ -28,6 +28,7 @@ export default function Navbar() {
         <div className="flex items-center gap-2">
           <button onClick={() => router.push('/intake')} className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname === '/intake' ? 'text-green-400' : 'text-gray-400 hover:text-white'}`}>Supplements</button>
           <button onClick={() => router.push('/workout')} className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname === '/workout' ? 'text-green-400' : 'text-gray-400 hover:text-white'}`}>Workout</button>
+          {isLoggedIn && <button onClick={() => router.push('/checkin')} className={`text-sm px-3 py-1.5 rounded-lg transition-colors ${pathname === '/checkin' ? 'text-green-400' : 'text-gray-400 hover:text-white'}`}>Check-in</button>}
           {isLoggedIn ? (
             <button onClick={() => router.push('/dashboard')} className={`text-sm px-4 py-1.5 rounded-lg font-medium transition-colors ${pathname === '/dashboard' ? 'bg-green-400 text-black' : 'bg-gray-900 border border-gray-700 text-white hover:border-gray-500'}`}>Dashboard</button>
           ) : (
