@@ -261,6 +261,23 @@ export default function Results() {
           {isPro && (
             <button onClick={() => router.push('/dashboard')} className="w-full bg-transparent border border-gray-700 text-gray-300 font-medium py-4 rounded-xl hover:border-gray-500 transition-colors">View my dashboard</button>
           )}
+          {isPro && (
+  <button onClick={async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user || !stack) return
+    const stored = localStorage.getItem('stackForm')
+    const formData = stored ? JSON.parse(stored) : {}
+    const { data: saved } = await supabase.from('stacks').insert({ user_id: user.id, form_data: formData, stack_data: stack }).select().single()
+    if (saved) {
+      const res = await fetch('/api/share-stack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stackId: saved.id, userId: user.id }) })
+      const data = await res.json()
+      if (data.shareId) {
+        await navigator.clipboard.writeText(window.location.origin + '/share/' + data.shareId)
+        alert('Share link copied to clipboard!')
+      }
+    }
+  }} className="w-full bg-transparent border border-gray-700 text-gray-300 font-medium py-4 rounded-xl hover:border-green-400 hover:text-green-400 transition-colors">Share my stack (copy link)</button>
+)}
           <button onClick={() => router.push('/intake')} className="w-full bg-transparent border border-gray-700 text-gray-300 font-medium py-4 rounded-xl hover:border-gray-500 transition-colors">Retake the quiz</button>
         </div>
 
