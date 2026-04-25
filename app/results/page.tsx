@@ -245,7 +245,16 @@ export default function Results() {
               <li>PDF export and shareable protocol link</li>
               <li>Bloodwork upload for precision recommendations</li>
             </ul>
-            <button onClick={handleUpgrade} className="w-full bg-green-400 text-black font-semibold py-3 rounded-xl hover:bg-green-300 transition-colors">Upgrade to Pro - 14.99/month</button>
+            <div className="grid grid-cols-2 gap-3">
+  <button onClick={handleUpgrade} className="bg-green-400 text-black font-semibold py-3 rounded-xl hover:bg-green-300 transition-colors text-sm">Monthly - £14.99/mo</button>
+  <button onClick={async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { router.push('/auth?returnTo=/results'); return }
+    const response = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userEmail: user.email, priceId: 'price_1TQ6jCCo3njbnpvhDV0MFIp5' }) })
+    const data = await response.json()
+    if (data.url) window.location.href = data.url
+  }} className="bg-gray-900 border border-green-400 text-green-400 font-semibold py-3 rounded-xl hover:bg-green-400 hover:text-black transition-colors text-sm">Yearly - £99/yr (save 45%)</button>
+</div>
             <p className="text-gray-600 text-xs text-center mt-2">or 99/year (45% off)</p>
           </div>
         )}
