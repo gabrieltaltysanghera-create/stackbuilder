@@ -209,7 +209,10 @@ export default function Dashboard() {
                 <p className="text-green-400 text-sm font-medium uppercase tracking-widest mb-2">Upgrade to Pro</p>
                 <p className="text-white font-bold text-lg mb-2">Unlock daily coaching</p>
                 <p className="text-gray-400 text-sm mb-4">Daily check-ins, streaks, progress charts, AI adaptation and more.</p>
-                <button onClick={() => router.push('/api/upgrade')} className="w-full bg-green-400 text-black font-semibold py-3 rounded-xl hover:bg-green-300 transition-colors">Upgrade to Pro - 14.99/month</button>
+                <div className="grid grid-cols-2 gap-3">
+  <button onClick={() => router.push('/api/upgrade')} className="bg-green-400 text-black font-semibold py-3 rounded-xl hover:bg-green-300 transition-colors text-sm">Monthly - £14.99/mo</button>
+  <button onClick={() => router.push('/api/upgrade?plan=yearly')} className="bg-gray-900 border border-green-400 text-green-400 font-semibold py-3 rounded-xl hover:bg-green-400 hover:text-black transition-colors text-sm">Yearly - £99/yr (save 45%)</button>
+</div>
               </div>
             )}
           </div>
