@@ -85,6 +85,12 @@ export default function Dashboard() {
     router.push('/')
   }
 
+  const handleUpgrade = (yearly: boolean) => {
+    const email = encodeURIComponent(userEmail)
+    const plan = yearly ? 'yearly&' : ''
+    window.location.href = '/api/upgrade?' + plan + 'email=' + email
+  }
+
   const chartData = checkins.slice().reverse().map(c => ({
     date: new Date(c.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
     Energy: c.energy,
@@ -210,9 +216,9 @@ export default function Dashboard() {
                 <p className="text-white font-bold text-lg mb-2">Unlock daily coaching</p>
                 <p className="text-gray-400 text-sm mb-4">Daily check-ins, streaks, progress charts, AI adaptation and more.</p>
                 <div className="grid grid-cols-2 gap-3">
-  <button onClick={() => window.location.href = `/api/upgrade?email=${encodeURIComponent(userEmail)}`} className="bg-green-400 text-black font-semibold py-3 rounded-xl hover:bg-green-300 transition-colors text-sm">Monthly - £14.99/mo</button>
-<button onClick={() => window.location.href = `/api/upgrade?plan=yearly&email=${encodeURIComponent(userEmail)}`} className="bg-gray-900 border border-green-400 text-green-400 font-semibold py-3 rounded-xl hover:bg-green-400 hover:text-black transition-colors text-sm">Yearly - £99/yr (save 45%)</button>
-</div>
+                  <button onClick={() => handleUpgrade(false)} className="bg-green-400 text-black font-semibold py-3 rounded-xl hover:bg-green-300 transition-colors text-sm">Monthly - 14.99/mo</button>
+                  <button onClick={() => handleUpgrade(true)} className="bg-gray-900 border border-green-400 text-green-400 font-semibold py-3 rounded-xl hover:bg-green-400 hover:text-black transition-colors text-sm">Yearly - 99/yr (save 45%)</button>
+                </div>
               </div>
             )}
           </div>
