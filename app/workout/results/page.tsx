@@ -32,7 +32,6 @@ export default function WorkoutResults() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [isPro, setIsPro] = useState(false)
-  const [userEmail, setUserEmail] = useState('')
   const [saved, setSaved] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState('Analysing your fitness profile...')
 
@@ -54,10 +53,10 @@ export default function WorkoutResults() {
     const init = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser()
+
         if (user) {
-          setUserEmail(user.email || '')
-          const { data } = await supabase.from('subscribers').select('id').eq('user_id', user.id).single()
-          if (data) setIsPro(true)
+          const { data: subData } = await supabase.from('subscribers').select('id').eq('user_id', user.id).single()
+          if (subData) setIsPro(true)
         }
 
         const stored = localStorage.getItem('workoutForm')
@@ -72,6 +71,16 @@ export default function WorkoutResults() {
         if (!response.ok) throw new Error('Failed to generate workout')
         const data = await response.json()
         setWorkout(data)
+
+        // Auto-save to dashboard for all logged-in users
+        if (user) {
+          const { error: saveError } = await supabase.from('workouts').insert({
+            user_id: user.id,
+            form_data: formData,
+            workout_data: data,
+          })
+          if (!saveError) setSaved(true)
+        }
       } catch (err) {
         setError('Something went wrong. Please try again.')
         console.error(err)
@@ -95,21 +104,6 @@ export default function WorkoutResults() {
     })
     const data = await response.json()
     if (data.url) window.location.href = data.url
-  }
-
-  const saveWorkout = async () => {
-    if (!isPro) { handleUpgrade(); return }
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user && workout) {
-      const stored = localStorage.getItem('workoutForm')
-      const formData = stored ? JSON.parse(stored) : {}
-      await supabase.from('workouts').insert({
-        user_id: user.id,
-        form_data: formData,
-        workout_data: workout,
-      })
-      setSaved(true)
-    }
   }
 
   if (loading) {
@@ -143,6 +137,9 @@ export default function WorkoutResults() {
           <p className="text-green-400 text-sm font-medium tracking-widest uppercase mb-3">Your personalised plan</p>
           <h1 className="text-4xl font-bold mb-4">Your workout plan</h1>
           <p className="text-gray-400 text-lg leading-relaxed">{workout?.summary}</p>
+          {saved && (
+            <p className="text-green-400 text-sm mt-3">✓ Saved to your dashboard</p>
+          )}
         </div>
 
         <div className="space-y-6 mb-10">
@@ -203,13 +200,13 @@ export default function WorkoutResults() {
             <p className="text-green-400 text-sm font-medium uppercase tracking-widest mb-2">Upgrade to Pro</p>
             <h3 className="text-xl font-bold mb-2">Track your progress</h3>
             <p className="text-gray-400 text-sm mb-4">Save your plan, track sets and reps over time, log daily check-ins, and let the AI adapt your workout week by week.</p>
-            <button onClick={handleUpgrade} className="w-full bg-green-400 text-black font-semibold py-3 rounded-xl hover:bg-green-300 transition-colors">Upgrade to Pro - 14.99/month</button>
+            <button onClick={handleUpgrade} className="w-full bg-green-400 text-black font-semibold py-3 rounded-xl hover:bg-green-300 transition-colors">Upgrade to Pro - £14.99/month</button>
           </div>
         )}
 
         <div className="border-t border-gray-800 pt-8 space-y-3">
-          <button onClick={saveWorkout} className="w-full bg-green-400 text-black font-semibold py-4 rounded-xl hover:bg-green-300 transition-colors">
-            {saved ? 'Saved to dashboard!' : isPro ? 'Save to dashboard' : 'Save to dashboard (Pro only)'}
+          <button onClick={() => router.push('/dashboard')} className="w-full bg-green-400 text-black font-semibold py-4 rounded-xl hover:bg-green-300 transition-colors">
+            {saved ? '✓ View in dashboard' : 'Go to dashboard'}
           </button>
           <button onClick={() => router.push('/intake')} className="w-full bg-transparent border border-gray-700 text-gray-300 font-medium py-4 rounded-xl hover:border-gray-500 transition-colors">Build your supplement stack</button>
           <button onClick={() => router.push('/workout')} className="w-full bg-transparent border border-gray-700 text-gray-300 font-medium py-4 rounded-xl hover:border-gray-500 transition-colors">Redo workout quiz</button>

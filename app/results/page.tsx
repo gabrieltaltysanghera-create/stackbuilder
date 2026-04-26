@@ -26,8 +26,8 @@ export default function Results() {
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [isPro, setIsPro] = useState(false)
-  const [userEmail, setUserEmail] = useState('')
   const [loadingMessage, setLoadingMessage] = useState('Analysing your profile...')
+  const [stackId, setStackId] = useState<string | null>(null)
 
   const loadingMessages = [
     'Analysing your profile...',
@@ -41,29 +41,25 @@ export default function Results() {
     let i = 0
     const interval = setInterval(() => {
       i++
-      if (i < loadingMessages.length) {
-        setLoadingMessage(loadingMessages[i])
-      }
+      if (i < loadingMessages.length) setLoadingMessage(loadingMessages[i])
     }, 3000)
 
     const init = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser()
+
         if (user) {
-          setUserEmail(user.email || '')
-          const { data } = await supabase
+          const { data: subData } = await supabase
             .from('subscribers')
             .select('id')
             .eq('user_id', user.id)
             .single()
-          if (data) setIsPro(true)
+          if (subData) setIsPro(true)
         }
 
         const stored = localStorage.getItem('stackForm')
-        if (!stored) {
-          router.push('/intake')
-          return
-        }
+        if (!stored) { router.push('/intake'); return }
+
         const formData = JSON.parse(stored)
         const response = await fetch('/api/generate', {
           method: 'POST',
@@ -73,6 +69,19 @@ export default function Results() {
         if (!response.ok) throw new Error('Failed to generate stack')
         const data = await response.json()
         setStack(data)
+
+        // Auto-save to dashboard for all logged-in users
+        if (user) {
+          const { data: inserted } = await supabase
+            .from('stacks')
+            .insert({ user_id: user.id, form_data: formData, stack_data: data })
+            .select()
+            .single()
+          if (inserted) {
+            setStackId(inserted.id)
+            setSaved(true)
+          }
+        }
       } catch (err) {
         setError('Something went wrong. Please try again.')
         console.error(err)
@@ -88,10 +97,7 @@ export default function Results() {
 
   const handleUpgrade = async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      router.push('/auth?returnTo=/results')
-      return
-    }
+    if (!user) { router.push('/auth?returnTo=/results'); return }
     const response = await fetch('/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -102,20 +108,7 @@ export default function Results() {
   }
 
   const downloadPDF = async () => {
-    if (!stack) return
-    if (!isPro) { handleUpgrade(); return }
-
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const stored = localStorage.getItem('stackForm')
-      const formData = stored ? JSON.parse(stored) : {}
-      await supabase.from('stacks').insert({
-        user_id: user.id,
-        form_data: formData,
-        stack_data: stack,
-      })
-      setSaved(true)
-    }
+    if (!stack || !isPro) { handleUpgrade(); return }
 
     const pdf = new jsPDF('p', 'mm', 'a4')
     const pageWidth = pdf.internal.pageSize.getWidth()
@@ -158,9 +151,7 @@ export default function Results() {
         y += 1
         addText('Warning: ' + supp.warning, 9, false, [161, 120, 0])
       }
-      if (supp.study) {
-        addText('Research: ' + supp.study, 9, false, [34, 197, 94])
-      }
+      if (supp.study) addText('Research: ' + supp.study, 9, false, [34, 197, 94])
       y += 6
     })
 
@@ -169,9 +160,37 @@ export default function Results() {
     pdf.save('my-supplement-stack.pdf')
   }
 
-  const getAmazonLink = (name: string) => {
-    return 'https://www.amazon.co.uk/s?k=' + encodeURIComponent(name) + '&tag=jusscomfy05-21'
+  const handleShare = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user || !stack) return
+
+    let id = stackId
+    if (!id) {
+      const stored = localStorage.getItem('stackForm')
+      const formData = stored ? JSON.parse(stored) : {}
+      const { data: inserted } = await supabase
+        .from('stacks')
+        .insert({ user_id: user.id, form_data: formData, stack_data: stack })
+        .select()
+        .single()
+      if (inserted) id = inserted.id
+    }
+
+    if (!id) return
+    const res = await fetch('/api/share-stack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stackId: id, userId: user.id }),
+    })
+    const data = await res.json()
+    if (data.shareId) {
+      await navigator.clipboard.writeText(window.location.origin + '/share/' + data.shareId)
+      alert('Share link copied to clipboard!')
+    }
   }
+
+  const getAmazonLink = (name: string) =>
+    'https://www.amazon.co.uk/s?k=' + encodeURIComponent(name) + '&tag=jusscomfy05-21'
 
   if (loading) {
     return (
@@ -190,9 +209,7 @@ export default function Results() {
       <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-4">
         <div className="text-center">
           <p className="text-red-400 font-medium text-lg mb-4">{error}</p>
-          <button onClick={() => router.push('/intake')} className="bg-green-400 text-black font-semibold px-8 py-3 rounded-xl hover:bg-green-300 transition-colors">
-            Try again
-          </button>
+          <button onClick={() => router.push('/intake')} className="bg-green-400 text-black font-semibold px-8 py-3 rounded-xl hover:bg-green-300 transition-colors">Try again</button>
         </div>
       </main>
     )
@@ -206,6 +223,9 @@ export default function Results() {
           <p className="text-green-400 text-sm font-medium tracking-widest uppercase mb-3">Your personalised protocol</p>
           <h1 className="text-4xl font-bold mb-4">Your supplement stack</h1>
           <p className="text-gray-400 text-lg leading-relaxed">{stack?.summary}</p>
+          {saved && (
+            <p className="text-green-400 text-sm mt-3">✓ Saved to your dashboard</p>
+          )}
         </div>
 
         <div className="space-y-4 mb-10">
@@ -246,47 +266,33 @@ export default function Results() {
               <li>Bloodwork upload for precision recommendations</li>
             </ul>
             <div className="grid grid-cols-2 gap-3">
-  <button onClick={handleUpgrade} className="bg-green-400 text-black font-semibold py-3 rounded-xl hover:bg-green-300 transition-colors text-sm">Monthly - £14.99/mo</button>
-  <button onClick={async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.push('/auth?returnTo=/results'); return }
-    const response = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userEmail: user.email, priceId: 'price_1TQ6jCCo3njbnpvhDV0MFIp5' }) })
-    const data = await response.json()
-    if (data.url) window.location.href = data.url
-  }} className="bg-gray-900 border border-green-400 text-green-400 font-semibold py-3 rounded-xl hover:bg-green-400 hover:text-black transition-colors text-sm">Yearly - £99/yr (save 45%)</button>
-</div>
-            <p className="text-gray-600 text-xs text-center mt-2">or 99/year (45% off)</p>
+              <button onClick={handleUpgrade} className="bg-green-400 text-black font-semibold py-3 rounded-xl hover:bg-green-300 transition-colors text-sm">Monthly - £14.99/mo</button>
+              <button onClick={async () => {
+                const { data: { user } } = await supabase.auth.getUser()
+                if (!user) { router.push('/auth?returnTo=/results'); return }
+                const response = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userEmail: user.email, priceId: 'price_1TQ6jCCo3njbnpvhDV0MFIp5' }) })
+                const data = await response.json()
+                if (data.url) window.location.href = data.url
+              }} className="bg-gray-900 border border-green-400 text-green-400 font-semibold py-3 rounded-xl hover:bg-green-400 hover:text-black transition-colors text-sm">Yearly - £99/yr (save 45%)</button>
+            </div>
           </div>
         )}
 
         <div className="border-t border-gray-800 pt-8 space-y-3">
-          {isPro ? (
-            <button onClick={downloadPDF} className="w-full bg-green-400 text-black font-semibold py-4 rounded-xl hover:bg-green-300 transition-colors">
-              {saved ? 'Saved! Downloading PDF...' : 'Save as PDF'}
+          <button onClick={() => router.push('/dashboard')} className="w-full bg-green-400 text-black font-semibold py-4 rounded-xl hover:bg-green-300 transition-colors">
+            {saved ? '✓ View in dashboard' : 'Go to dashboard'}
+          </button>
+          {isPro && (
+            <button onClick={downloadPDF} className="w-full bg-transparent border border-gray-700 text-gray-300 font-medium py-4 rounded-xl hover:border-green-400 hover:text-green-400 transition-colors">
+              Download as PDF
             </button>
-          ) : (
+          )}
+          {!isPro && (
             <button onClick={handleUpgrade} className="w-full bg-gray-800 border border-gray-700 text-gray-400 font-semibold py-4 rounded-xl hover:border-green-400 hover:text-green-400 transition-colors">Save as PDF (Pro only)</button>
           )}
           {isPro && (
-            <button onClick={() => router.push('/dashboard')} className="w-full bg-transparent border border-gray-700 text-gray-300 font-medium py-4 rounded-xl hover:border-gray-500 transition-colors">View my dashboard</button>
+            <button onClick={handleShare} className="w-full bg-transparent border border-gray-700 text-gray-300 font-medium py-4 rounded-xl hover:border-green-400 hover:text-green-400 transition-colors">Share my stack (copy link)</button>
           )}
-          {isPro && (
-  <button onClick={async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user || !stack) return
-    const stored = localStorage.getItem('stackForm')
-    const formData = stored ? JSON.parse(stored) : {}
-    const { data: saved } = await supabase.from('stacks').insert({ user_id: user.id, form_data: formData, stack_data: stack }).select().single()
-    if (saved) {
-      const res = await fetch('/api/share-stack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stackId: saved.id, userId: user.id }) })
-      const data = await res.json()
-      if (data.shareId) {
-        await navigator.clipboard.writeText(window.location.origin + '/share/' + data.shareId)
-        alert('Share link copied to clipboard!')
-      }
-    }
-  }} className="w-full bg-transparent border border-gray-700 text-gray-300 font-medium py-4 rounded-xl hover:border-green-400 hover:text-green-400 transition-colors">Share my stack (copy link)</button>
-)}
           <button onClick={() => router.push('/intake')} className="w-full bg-transparent border border-gray-700 text-gray-300 font-medium py-4 rounded-xl hover:border-gray-500 transition-colors">Retake the quiz</button>
         </div>
 
