@@ -18,7 +18,6 @@ export async function GET(request: NextRequest) {
       mode: 'subscription',
       success_url: `${origin}/dashboard?upgraded=true`,
       cancel_url: `${origin}/dashboard`,
-      customer_creation: 'always',
       ...(email && { customer_email: email }),
     })
 
