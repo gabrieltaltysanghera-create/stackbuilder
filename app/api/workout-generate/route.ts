@@ -61,11 +61,11 @@ For rest days use this format:
   "exercises": []
 }
 
-Return only the JSON, no other text.`
+Return only valid JSON. Do not include any explanation, markdown, or text outside the JSON object.`
 
     const message = await client.messages.create({
-      model: 'claude-opus-4-5-20251101',
-      max_tokens: 4069,
+      model: 'claude-opus-4-5',
+      max_tokens: 4096,
       messages: [
         {
           role: 'user',
@@ -79,8 +79,10 @@ Return only the JSON, no other text.`
       throw new Error('Unexpected response type')
     }
 
-    const cleaned = content.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    const workoutData = JSON.parse(cleaned)
+    const text = content.text.trim()
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) throw new Error('No JSON found in response')
+    const workoutData = JSON.parse(jsonMatch[0])
     return NextResponse.json(workoutData)
 
   } catch (error) {
