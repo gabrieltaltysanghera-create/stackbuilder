@@ -5,17 +5,42 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
+interface Supplement {
+  name: string
+  dose: string
+  timing: string
+  reason: string
+  warning?: string | null
+  study?: string | null
+}
+
 interface Stack {
   id: string
   created_at: string
-  stack_data: { summary: string; supplements: { name: string }[] }
+  stack_data: { summary: string; supplements: Supplement[] }
   form_data: { goals: string[] }
+}
+
+interface Exercise {
+  name: string
+  sets: string
+  reps: string
+  weight: string
+  rest: string
+  notes: string
+  study?: string | null
+}
+
+interface WorkoutDay {
+  day: string
+  focus: string
+  exercises: Exercise[]
 }
 
 interface Workout {
   id: string
   created_at: string
-  workout_data: { summary: string; weeklyPlan: { day: string; focus: string }[] }
+  workout_data: { summary: string; weeklyPlan: WorkoutDay[]; tips?: string[] }
   form_data: { goals: string[] }
 }
 
@@ -42,6 +67,8 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'stacks' | 'workouts'>('overview')
   const [streak, setStreak] = useState(0)
   const [checkedInToday, setCheckedInToday] = useState(false)
+  const [expandedStackId, setExpandedStackId] = useState<string | null>(null)
+  const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null)
 
   useEffect(() => {
     const getUser = async () => {
@@ -52,26 +79,13 @@ export default function Dashboard() {
       const { data: sub } = await supabase.from('subscribers').select('id').eq('user_id', user.id).single()
       if (sub) setIsPro(true)
 
-      const { data: stackData } = await supabase
-        .from('stacks')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+      const { data: stackData } = await supabase.from('stacks').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
       if (stackData) setStacks(stackData)
 
-      const { data: workoutData } = await supabase
-        .from('workouts')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+      const { data: workoutData } = await supabase.from('workouts').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
       if (workoutData) setWorkouts(workoutData)
 
-      const { data: checkinData } = await supabase
-        .from('checkins')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('date', { ascending: false })
-        .limit(30)
+      const { data: checkinData } = await supabase.from('checkins').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(30)
       if (checkinData) {
         setCheckins(checkinData)
         const today = new Date().toISOString().split('T')[0]
@@ -81,8 +95,7 @@ export default function Dashboard() {
         for (let i = 0; i < sorted.length; i++) {
           const expected = new Date()
           expected.setDate(expected.getDate() - i)
-          const expectedStr = expected.toISOString().split('T')[0]
-          if (sorted[i]?.date === expectedStr) s++
+          if (sorted[i]?.date === expected.toISOString().split('T')[0]) s++
           else break
         }
         setStreak(s)
@@ -100,9 +113,11 @@ export default function Dashboard() {
 
   const handleUpgrade = (yearly: boolean) => {
     const email = encodeURIComponent(userEmail)
-    const plan = yearly ? 'yearly&' : ''
-    window.location.href = '/api/upgrade?' + plan + 'email=' + email
+    window.location.href = '/api/upgrade?' + (yearly ? 'plan=yearly&' : '') + 'email=' + email
   }
+
+  const getAmazonLink = (name: string) =>
+    'https://www.amazon.co.uk/s?k=' + encodeURIComponent(name) + '&tag=jusscomfy05-21'
 
   const chartData = checkins.slice().reverse().map(c => ({
     date: new Date(c.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
@@ -111,13 +126,8 @@ export default function Dashboard() {
     Mood: c.mood,
   }))
 
-  const suppAdherence = checkins.length > 0
-    ? Math.round((checkins.filter(c => c.took_supplements).length / checkins.length) * 100)
-    : 0
-
-  const workoutAdherence = checkins.length > 0
-    ? Math.round((checkins.filter(c => c.completed_workout).length / checkins.length) * 100)
-    : 0
+  const suppAdherence = checkins.length > 0 ? Math.round((checkins.filter(c => c.took_supplements).length / checkins.length) * 100) : 0
+  const workoutAdherence = checkins.length > 0 ? Math.round((checkins.filter(c => c.completed_workout).length / checkins.length) * 100) : 0
 
   if (loading) {
     return (
@@ -153,12 +163,13 @@ export default function Dashboard() {
 
         <div className="flex gap-2 mb-6">
           {(['overview', 'stacks', 'workouts'] as const).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors capitalize ${activeTab === tab ? 'bg-green-400 text-black' : 'bg-gray-900 border border-gray-700 text-gray-300'}`}>
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activeTab === tab ? 'bg-green-400 text-black' : 'bg-gray-900 border border-gray-700 text-gray-300'}`}>
               {tab === 'stacks' ? `Stacks (${stacks.length})` : tab === 'workouts' ? `Workouts (${workouts.length})` : 'Overview'}
             </button>
           ))}
         </div>
 
+        {/* OVERVIEW TAB */}
         {activeTab === 'overview' && (
           <div className="space-y-4">
             {isPro ? (
@@ -177,7 +188,6 @@ export default function Dashboard() {
                     <p className="text-gray-500 text-xs mt-1">Workout adherence</p>
                   </div>
                 </div>
-
                 {chartData.length > 0 ? (
                   <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
                     <h3 className="font-semibold mb-4">Wellbeing over time</h3>
@@ -204,7 +214,6 @@ export default function Dashboard() {
                     <p className="text-gray-500 text-sm">Complete daily check-ins to see your progress charts here</p>
                   </div>
                 )}
-
                 {checkins.slice(0, 5).length > 0 && (
                   <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
                     <h3 className="font-semibold mb-4">Recent check-ins</h3>
@@ -255,6 +264,7 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* STACKS TAB */}
         {activeTab === 'stacks' && (
           <div className="space-y-4">
             {stacks.length === 0 ? (
@@ -263,29 +273,65 @@ export default function Dashboard() {
                 <button onClick={() => router.push('/intake')} className="bg-green-400 text-black font-semibold px-8 py-4 rounded-xl hover:bg-green-300 transition-colors">Build your first stack</button>
               </div>
             ) : stacks.map((stack) => (
-              <div key={stack.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">{new Date(stack.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                    <p className="text-white font-medium">{stack.stack_data.supplements.length} supplements</p>
+              <div key={stack.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+                {/* Card header — always visible, click to expand */}
+                <button onClick={() => setExpandedStackId(expandedStackId === stack.id ? null : stack.id)} className="w-full text-left p-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">{new Date(stack.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                      <p className="text-white font-medium">{stack.stack_data.supplements.length} supplements</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-2 flex-wrap justify-end">
+                        {stack.form_data.goals?.slice(0, 2).map((goal: string) => (
+                          <span key={goal} className="bg-green-400/10 text-green-400 text-xs px-3 py-1 rounded-full border border-green-400/20">{goal}</span>
+                        ))}
+                      </div>
+                      <span className="text-gray-500 text-lg ml-2">{expandedStackId === stack.id ? '▲' : '▼'}</span>
+                    </div>
                   </div>
-                  <div className="flex gap-2 flex-wrap justify-end">
-                    {stack.form_data.goals?.slice(0, 2).map((goal: string) => (
-                      <span key={goal} className="bg-green-400/10 text-green-400 text-xs px-3 py-1 rounded-full border border-green-400/20">{goal}</span>
+                  <p className="text-gray-400 text-sm leading-relaxed mt-3">{stack.stack_data.summary}</p>
+                  {expandedStackId !== stack.id && (
+                    <div className="flex gap-2 flex-wrap mt-3">
+                      {stack.stack_data.supplements.map((supp) => (
+                        <span key={supp.name} className="bg-gray-800 text-gray-300 text-xs px-3 py-1 rounded-full">{supp.name}</span>
+                      ))}
+                    </div>
+                  )}
+                </button>
+
+                {/* Expanded full view */}
+                {expandedStackId === stack.id && (
+                  <div className="px-6 pb-6 space-y-4 border-t border-gray-800 pt-4">
+                    {stack.stack_data.supplements.map((supp, i) => (
+                      <div key={i} className="bg-gray-800/50 rounded-2xl p-5">
+                        <div className="flex items-start justify-between mb-3">
+                          <h3 className="text-lg font-bold">{supp.name}</h3>
+                          <span className="bg-green-400 text-black text-xs font-semibold px-3 py-1 rounded-full ml-4 shrink-0">{supp.dose}</span>
+                        </div>
+                        <p className="text-green-400 text-sm font-medium mb-2">Timing: {supp.timing}</p>
+                        <p className="text-gray-400 text-sm leading-relaxed mb-3">{supp.reason}</p>
+                        {supp.warning && (
+                          <div className="bg-yellow-400/10 border border-yellow-400/20 rounded-xl px-4 py-3 mb-3">
+                            <p className="text-yellow-400 text-xs font-medium">Warning: {supp.warning}</p>
+                          </div>
+                        )}
+                        <div className="flex gap-3 flex-wrap mt-2">
+                          <a href={getAmazonLink(supp.name)} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-2 rounded-lg transition-colors">Buy on Amazon</a>
+                          {supp.study && (
+                            <a href={supp.study} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-green-400 hover:text-green-300 border border-green-400/30 hover:border-green-400 px-3 py-2 rounded-lg transition-colors">View research</a>
+                          )}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </div>
-                <p className="text-gray-400 text-sm leading-relaxed mb-4">{stack.stack_data.summary}</p>
-                <div className="flex gap-2 flex-wrap">
-                  {stack.stack_data.supplements.map((supp) => (
-                    <span key={supp.name} className="bg-gray-800 text-gray-300 text-xs px-3 py-1 rounded-full">{supp.name}</span>
-                  ))}
-                </div>
+                )}
               </div>
             ))}
           </div>
         )}
 
+        {/* WORKOUTS TAB */}
         {activeTab === 'workouts' && (
           <div className="space-y-4">
             {workouts.length === 0 ? (
@@ -294,24 +340,86 @@ export default function Dashboard() {
                 <button onClick={() => router.push('/workout')} className="bg-green-400 text-black font-semibold px-8 py-4 rounded-xl hover:bg-green-300 transition-colors">Build your first workout</button>
               </div>
             ) : workouts.map((workout) => (
-              <div key={workout.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">{new Date(workout.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                    <p className="text-white font-medium">{workout.workout_data.weeklyPlan.filter(d => d.focus !== 'Rest & Recovery').length} training days/week</p>
+              <div key={workout.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+                {/* Card header — always visible, click to expand */}
+                <button onClick={() => setExpandedWorkoutId(expandedWorkoutId === workout.id ? null : workout.id)} className="w-full text-left p-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">{new Date(workout.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                      <p className="text-white font-medium">{workout.workout_data.weeklyPlan.filter(d => d.focus !== 'Rest & Recovery').length} training days/week</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-2 flex-wrap justify-end">
+                        {workout.form_data.goals?.slice(0, 2).map((goal: string) => (
+                          <span key={goal} className="bg-green-400/10 text-green-400 text-xs px-3 py-1 rounded-full border border-green-400/20">{goal}</span>
+                        ))}
+                      </div>
+                      <span className="text-gray-500 text-lg ml-2">{expandedWorkoutId === workout.id ? '▲' : '▼'}</span>
+                    </div>
                   </div>
-                  <div className="flex gap-2 flex-wrap justify-end">
-                    {workout.form_data.goals?.slice(0, 2).map((goal: string) => (
-                      <span key={goal} className="bg-green-400/10 text-green-400 text-xs px-3 py-1 rounded-full border border-green-400/20">{goal}</span>
+                  <p className="text-gray-400 text-sm leading-relaxed mt-3">{workout.workout_data.summary}</p>
+                  {expandedWorkoutId !== workout.id && (
+                    <div className="flex gap-2 flex-wrap mt-3">
+                      {workout.workout_data.weeklyPlan.map((day) => (
+                        <span key={day.day} className={`text-xs px-3 py-1 rounded-full ${day.focus === 'Rest & Recovery' ? 'bg-gray-800 text-gray-500' : 'bg-gray-800 text-gray-300'}`}>{day.day}</span>
+                      ))}
+                    </div>
+                  )}
+                </button>
+
+                {/* Expanded full view */}
+                {expandedWorkoutId === workout.id && (
+                  <div className="px-6 pb-6 space-y-4 border-t border-gray-800 pt-4">
+                    {workout.workout_data.weeklyPlan.map((day, i) => (
+                      <div key={i} className="bg-gray-800/50 rounded-2xl p-5">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-bold">{day.day}</h3>
+                          <span className="bg-green-400/10 text-green-400 text-xs font-semibold px-3 py-1 rounded-full border border-green-400/20">{day.focus}</span>
+                        </div>
+                        <div className="space-y-3">
+                          {day.exercises.map((ex, j) => (
+                            <div key={j} className="bg-gray-900 rounded-xl p-4">
+                              <div className="flex items-start justify-between mb-2">
+                                <h4 className="font-semibold text-white">{ex.name}</h4>
+                                {ex.study && (
+                                  <a href={ex.study} target="_blank" rel="noopener noreferrer" className="text-xs text-green-400 hover:text-green-300 border border-green-400/30 px-2 py-1 rounded-lg ml-2 shrink-0">Research</a>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-3 gap-2 mb-2">
+                                <div className="text-center bg-gray-800 rounded-lg py-2">
+                                  <p className="text-xs text-gray-500 mb-1">Sets</p>
+                                  <p className="text-green-400 font-semibold text-sm">{ex.sets}</p>
+                                </div>
+                                <div className="text-center bg-gray-800 rounded-lg py-2">
+                                  <p className="text-xs text-gray-500 mb-1">Reps</p>
+                                  <p className="text-green-400 font-semibold text-sm">{ex.reps}</p>
+                                </div>
+                                <div className="text-center bg-gray-800 rounded-lg py-2">
+                                  <p className="text-xs text-gray-500 mb-1">Rest</p>
+                                  <p className="text-green-400 font-semibold text-sm">{ex.rest}</p>
+                                </div>
+                              </div>
+                              {ex.weight && <p className="text-gray-500 text-xs mb-1">Starting weight: {ex.weight}</p>}
+                              {ex.notes && <p className="text-gray-400 text-xs">{ex.notes}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     ))}
+                    {workout.workout_data.tips && workout.workout_data.tips.length > 0 && (
+                      <div className="bg-gray-800/50 rounded-2xl p-5">
+                        <h3 className="font-bold mb-3">Pro tips</h3>
+                        <ul className="space-y-2">
+                          {workout.workout_data.tips.map((tip, i) => (
+                            <li key={i} className="text-gray-400 text-sm flex gap-2">
+                              <span className="text-green-400 shrink-0">-</span>{tip}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
-                </div>
-                <p className="text-gray-400 text-sm leading-relaxed mb-4">{workout.workout_data.summary}</p>
-                <div className="flex gap-2 flex-wrap">
-                  {workout.workout_data.weeklyPlan.map((day) => (
-                    <span key={day.day} className={`text-xs px-3 py-1 rounded-full ${day.focus === 'Rest & Recovery' ? 'bg-gray-800 text-gray-500' : 'bg-gray-800 text-gray-300'}`}>{day.day}</span>
-                  ))}
-                </div>
+                )}
               </div>
             ))}
           </div>
