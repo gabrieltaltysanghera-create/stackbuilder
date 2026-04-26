@@ -9,6 +9,7 @@ export default function Intake() {
   const [step, setStep] = useState(1)
   const [goalLimitHit, setGoalLimitHit] = useState(false)
   const [isPro, setIsPro] = useState(false)
+  const [userEmail, setUserEmail] = useState('')
   const [form, setForm] = useState({
     age: '',
     sex: '',
@@ -29,6 +30,7 @@ export default function Intake() {
     const checkPro = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
+        setUserEmail(user.email || '')
         const { data } = await supabase
           .from('subscribers')
           .select('id')
@@ -39,6 +41,12 @@ export default function Intake() {
     }
     checkPro()
   }, [])
+
+  const handleUpgrade = (yearly: boolean) => {
+    if (!userEmail) { router.push('/auth?returnTo=/intake'); return }
+    const email = encodeURIComponent(userEmail)
+    window.location.href = '/api/upgrade?' + (yearly ? 'plan=yearly&' : '') + 'email=' + email
+  }
 
   const updateForm = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -117,7 +125,14 @@ export default function Intake() {
               <div className="bg-green-400/10 border border-green-400/30 rounded-xl px-4 py-4 mb-4">
                 <p className="text-green-400 text-sm font-medium mb-1">Multiple goals is a Pro feature</p>
                 <p className="text-gray-400 text-xs mb-3">Upgrade to unlock unlimited goals and a more personalised stack.</p>
-                <a href="/auth?returnTo=/intake" className="inline-block bg-green-400 text-black text-xs font-semibold px-4 py-2 rounded-lg hover:bg-green-300 transition-colors">Upgrade to Pro -14.99/month</a>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => handleUpgrade(false)} className="bg-green-400 text-black text-xs font-semibold px-4 py-2 rounded-lg hover:bg-green-300 transition-colors">
+                    Monthly - £14.99/mo
+                  </button>
+                  <button onClick={() => handleUpgrade(true)} className="bg-transparent border border-green-400 text-green-400 text-xs font-semibold px-4 py-2 rounded-lg hover:bg-green-400 hover:text-black transition-colors">
+                    Yearly - £99/yr
+                  </button>
+                </div>
               </div>
             )}
 
