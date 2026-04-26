@@ -52,13 +52,26 @@ export default function Dashboard() {
       const { data: sub } = await supabase.from('subscribers').select('id').eq('user_id', user.id).single()
       if (sub) setIsPro(true)
 
-      const { data: stackData } = await supabase.from('stacks').select('*').order('created_at', { ascending: false })
+      const { data: stackData } = await supabase
+        .from('stacks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
       if (stackData) setStacks(stackData)
 
-      const { data: workoutData } = await supabase.from('workouts').select('*').order('created_at', { ascending: false })
+      const { data: workoutData } = await supabase
+        .from('workouts')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
       if (workoutData) setWorkouts(workoutData)
 
-      const { data: checkinData } = await supabase.from('checkins').select('*').order('date', { ascending: false }).limit(30)
+      const { data: checkinData } = await supabase
+        .from('checkins')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false })
+        .limit(30)
       if (checkinData) {
         setCheckins(checkinData)
         const today = new Date().toISOString().split('T')[0]
@@ -134,14 +147,16 @@ export default function Dashboard() {
 
         {isPro && (
           <button onClick={() => router.push('/checkin')} className={`w-full mb-6 py-3 rounded-xl font-semibold text-sm transition-colors ${checkedInToday ? 'bg-green-400/10 border border-green-400/30 text-green-400' : 'bg-green-400 text-black hover:bg-green-300'}`}>
-            {checkedInToday ? 'Checked in today' : 'Daily check-in'}
+            {checkedInToday ? 'Checked in today ✓' : 'Daily check-in'}
           </button>
         )}
 
         <div className="flex gap-2 mb-6">
-          <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activeTab === 'overview' ? 'bg-green-400 text-black' : 'bg-gray-900 border border-gray-700 text-gray-300'}`}>Overview</button>
-          <button onClick={() => setActiveTab('stacks')} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activeTab === 'stacks' ? 'bg-green-400 text-black' : 'bg-gray-900 border border-gray-700 text-gray-300'}`}>Stacks</button>
-          <button onClick={() => setActiveTab('workouts')} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activeTab === 'workouts' ? 'bg-green-400 text-black' : 'bg-gray-900 border border-gray-700 text-gray-300'}`}>Workouts</button>
+          {(['overview', 'stacks', 'workouts'] as const).map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors capitalize ${activeTab === tab ? 'bg-green-400 text-black' : 'bg-gray-900 border border-gray-700 text-gray-300'}`}>
+              {tab === 'stacks' ? `Stacks (${stacks.length})` : tab === 'workouts' ? `Workouts (${workouts.length})` : 'Overview'}
+            </button>
+          ))}
         </div>
 
         {activeTab === 'overview' && (
@@ -201,8 +216,8 @@ export default function Dashboard() {
                             <span className="text-green-400">E:{c.energy}</span>
                             <span className="text-blue-400">S:{c.sleep_quality}</span>
                             <span className="text-yellow-400">M:{c.mood}</span>
-                            {c.took_supplements && <span className="text-green-400">Supps</span>}
-                            {c.completed_workout && <span className="text-green-400">Workout</span>}
+                            {c.took_supplements && <span className="text-green-400">Supps ✓</span>}
+                            {c.completed_workout && <span className="text-green-400">Workout ✓</span>}
                           </div>
                         </div>
                       ))}
@@ -211,13 +226,29 @@ export default function Dashboard() {
                 )}
               </>
             ) : (
-              <div className="bg-gray-900 border border-green-400/30 rounded-2xl p-6">
-                <p className="text-green-400 text-sm font-medium uppercase tracking-widest mb-2">Upgrade to Pro</p>
-                <p className="text-white font-bold text-lg mb-2">Unlock daily coaching</p>
-                <p className="text-gray-400 text-sm mb-4">Daily check-ins, streaks, progress charts, AI adaptation and more.</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <button onClick={() => handleUpgrade(false)} className="bg-green-400 text-black font-semibold py-3 rounded-xl hover:bg-green-300 transition-colors text-sm">Monthly - 14.99/mo</button>
-                  <button onClick={() => handleUpgrade(true)} className="bg-gray-900 border border-green-400 text-green-400 font-semibold py-3 rounded-xl hover:bg-green-400 hover:text-black transition-colors text-sm">Yearly - 99/yr (save 45%)</button>
+              <div className="space-y-4">
+                {stacks.length > 0 && (
+                  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+                    <h3 className="font-semibold mb-1">Latest supplement stack</h3>
+                    <p className="text-gray-400 text-sm mb-3">{stacks[0].stack_data.summary}</p>
+                    <button onClick={() => setActiveTab('stacks')} className="text-green-400 text-sm hover:text-green-300">View all stacks →</button>
+                  </div>
+                )}
+                {workouts.length > 0 && (
+                  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+                    <h3 className="font-semibold mb-1">Latest workout plan</h3>
+                    <p className="text-gray-400 text-sm mb-3">{workouts[0].workout_data.summary}</p>
+                    <button onClick={() => setActiveTab('workouts')} className="text-green-400 text-sm hover:text-green-300">View all workouts →</button>
+                  </div>
+                )}
+                <div className="bg-gray-900 border border-green-400/30 rounded-2xl p-6">
+                  <p className="text-green-400 text-sm font-medium uppercase tracking-widest mb-2">Upgrade to Pro</p>
+                  <p className="text-white font-bold text-lg mb-2">Unlock daily coaching</p>
+                  <p className="text-gray-400 text-sm mb-4">Daily check-ins, streaks, progress charts, AI adaptation and more.</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button onClick={() => handleUpgrade(false)} className="bg-green-400 text-black font-semibold py-3 rounded-xl hover:bg-green-300 transition-colors text-sm">Monthly - £14.99/mo</button>
+                    <button onClick={() => handleUpgrade(true)} className="bg-gray-900 border border-green-400 text-green-400 font-semibold py-3 rounded-xl hover:bg-green-400 hover:text-black transition-colors text-sm">Yearly - £99/yr (save 45%)</button>
+                  </div>
                 </div>
               </div>
             )}
